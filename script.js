@@ -24,21 +24,23 @@ let balance = 1000;
 let bet = 10;
 let multipliers = [];
 
-const gravity = 0.25;
-const friction = 0.995;
-const bounce = 0.6;
+const gravity = 0.35;      // ↑ lepsze opadanie
+const friction = 0.998;    // ↑ mniej utraty energii
+const bounce = 0.75;       // ↑ bardziej naturalne odbicia
 
-// trail
 let trail = [];
 
+// delta time (płynność)
+let lastTime = 0;
+
 // ==========================
-// UI ELEMENTS
+// UI
 // ==========================
 const balanceEl = document.getElementById("balance");
 const betInput = document.getElementById("bet");
 
 // ==========================
-// SAVE / LOAD
+// SAVE
 // ==========================
 function saveGame() {
     localStorage.setItem("plinko_balance", balance);
@@ -96,8 +98,8 @@ function createPins() {
 function createBall() {
     const startPositions = [
         canvas.width / 2,
-        canvas.width / 2 - 20,
-        canvas.width / 2 + 20
+        canvas.width / 2 - 25,
+        canvas.width / 2 + 25
     ];
 
     const startX = startPositions[Math.floor(Math.random() * startPositions.length)];
@@ -105,14 +107,14 @@ function createBall() {
     return {
         x: startX,
         y: 20,
-        vx: 0,
+        vx: (Math.random() - 0.5) * 0.5, // lekki start
         vy: 0,
-        radius: 6
+        radius: 7
     };
 }
 
 // ==========================
-// COLLISION
+// COLLISION (ULEPSZONE)
 // ==========================
 function resolveCollision(ball, pin) {
     let dx = ball.x - pin.x;
@@ -125,19 +127,23 @@ function resolveCollision(ball, pin) {
         let nx = dx / dist;
         let ny = dy / dist;
 
+        // wypchnięcie z kolizji
         let overlap = minDist - dist;
         ball.x += nx * overlap;
         ball.y += ny * overlap;
 
+        // odbicie (bardziej stabilne)
         let dot = ball.vx * nx + ball.vy * ny;
 
         ball.vx -= 2 * dot * nx;
         ball.vy -= 2 * dot * ny;
 
+        // tłumienie
         ball.vx *= bounce;
         ball.vy *= bounce;
 
-        ball.vx += (Math.random() - 0.5) * 0.05;
+        // mikro losowość (ale kontrolowana)
+        ball.vx += (Math.random() - 0.5) * 0.03;
     }
 }
 
@@ -158,26 +164,28 @@ function handleResult() {
 
     saveGame();
 
-    alert("Wygrałeś: " + win.toFixed(2) + " $");
+    setTimeout(() => {
+        alert("Wygrana: " + win.toFixed(2) + " $");
+    }, 100);
 }
 
 // ==========================
-// UPDATE
+// UPDATE (DELTA TIME)
 // ==========================
-function update() {
+function update(delta) {
     if (!ball) return;
 
-    ball.vy += gravity;
+    ball.vy += gravity * delta;
 
-    ball.x += ball.vx;
-    ball.y += ball.vy;
+    ball.x += ball.vx * delta;
+    ball.y += ball.vy * delta;
 
     ball.vx *= friction;
 
-    pins.forEach(pin => {
-        resolveCollision(ball, pin);
-    });
+    // kolizje
+    pins.forEach(pin => resolveCollision(ball, pin));
 
+    // ściany
     if (ball.x < ball.radius) {
         ball.x = ball.radius;
         ball.vx *= -bounce;
@@ -188,12 +196,11 @@ function update() {
         ball.vx *= -bounce;
     }
 
-    ball.vx *= 0.98;
-
     // trail
     trail.push({x: ball.x, y: ball.y});
-    if (trail.length > 20) trail.shift();
+    if (trail.length > 25) trail.shift();
 
+    // koniec
     if (ball.y > canvas.height - 20) {
         handleResult();
         ball = null;
@@ -202,54 +209,64 @@ function update() {
 }
 
 // ==========================
-// DRAW
+// DRAW (LEPSZY VIBE)
 // ==========================
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // pins
+    // glow pins
     pins.forEach(p => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "white";
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "#00ffcc";
+        ctx.shadowBlur = 5;
         ctx.fill();
+        ctx.shadowBlur = 0;
     });
 
-    // trail
+    // trail glow
     trail.forEach((t, i) => {
         ctx.beginPath();
-        ctx.arc(t.x, t.y, 2, 0, Math.PI * 2);
+        ctx.arc(t.x, t.y, 3, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(0,255,150," + (i / trail.length) + ")";
         ctx.fill();
     });
 
-    // ball
+    // ball glow
     if (ball) {
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
         ctx.fillStyle = "#00ff99";
+        ctx.shadowColor = "#00ff99";
+        ctx.shadowBlur = 15;
         ctx.fill();
+        ctx.shadowBlur = 0;
     }
 
-    // balance UI
+    // UI
     if (balanceEl) {
         balanceEl.innerText = "Balance: " + balance.toFixed(2) + " $";
     }
 }
 
 // ==========================
-// LOOP
+// LOOP (DELTA TIME)
 // ==========================
-function loop() {
-    update();
+function loop(time = 0) {
+    let delta = (time - lastTime) / 16;
+    lastTime = time;
+
+    update(delta);
     draw();
+
     requestAnimationFrame(loop);
 }
 
 // ==========================
-// EVENTS
+// EVENTS (MOBILE READY)
 // ==========================
-document.getElementById("drop").onclick = () => {
+function dropBall() {
     bet = parseFloat(betInput?.value || 10);
 
     if (balance < bet) {
@@ -266,7 +283,10 @@ document.getElementById("drop").onclick = () => {
     createMultipliers();
 
     ball = createBall();
-};
+}
+
+document.getElementById("drop").onclick = dropBall;
+canvas.addEventListener("touchstart", dropBall);
 
 // ==========================
 // INIT
