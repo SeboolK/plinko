@@ -1,8 +1,14 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 400;
-canvas.height = 500;
+// 📱 RESPONSYWNY CANVAS
+function resizeCanvas() {
+    const size = Math.min(window.innerWidth - 20, 500);
+    canvas.width = size;
+    canvas.height = size * 1.2;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
 let pins = [];
 let ball = null;
@@ -10,9 +16,10 @@ let rows = 10;
 let risk = "medium";
 
 const gravity = 0.25;
-const friction = 0.999;
+const friction = 0.995;
 const bounce = 0.6;
 
+// 🎯 DROP (3 STARTOWE POZYCJE)
 document.getElementById("drop").onclick = () => {
     rows = parseInt(document.getElementById("rows").value);
     risk = document.getElementById("risk").value;
@@ -20,10 +27,18 @@ document.getElementById("drop").onclick = () => {
     createPins();
     createMultipliers();
 
+    const startPositions = [
+        canvas.width / 2,
+        canvas.width / 2 - 20,
+        canvas.width / 2 + 20
+    ];
+
+    const startX = startPositions[Math.floor(Math.random() * startPositions.length)];
+
     ball = {
-        x: canvas.width / 2 + (Math.random() - 0.5) * 20,
+        x: startX,
         y: 20,
-        vx: (Math.random() - 0.5) * 1,
+        vx: 0,
         vy: 0,
         radius: 6
     };
@@ -73,28 +88,23 @@ function resolveCollision(ball, pin) {
     let minDist = ball.radius + pin.radius;
 
     if (dist < minDist) {
-        // normal vector
         let nx = dx / dist;
         let ny = dy / dist;
 
-        // push ball out
         let overlap = minDist - dist;
         ball.x += nx * overlap;
         ball.y += ny * overlap;
 
-        // velocity dot normal
         let dot = ball.vx * nx + ball.vy * ny;
 
-        // reflect velocity
         ball.vx -= 2 * dot * nx;
         ball.vy -= 2 * dot * ny;
 
-        // energy loss
         ball.vx *= bounce;
         ball.vy *= bounce;
 
-        // slight randomness (natural feel)
-        ball.vx += (Math.random() - 0.5) * 0.2;
+        // 🔥 MNIEJSZY RANDOM (ważne)
+        ball.vx += (Math.random() - 0.5) * 0.05;
     }
 }
 
@@ -111,7 +121,7 @@ function update() {
     // friction
     ball.vx *= friction;
 
-    // collisions with pins
+    // collisions
     pins.forEach(pin => {
         resolveCollision(ball, pin);
     });
@@ -126,7 +136,10 @@ function update() {
         ball.vx *= -bounce;
     }
 
-    // bottom (landing)
+    // 🔥 LEKKIE PROWADZENIE W DÓŁ (mega ważne)
+    ball.vx *= 0.98;
+
+    // bottom
     if (ball.y > canvas.height - 20) {
         ball = null;
     }
@@ -157,7 +170,6 @@ function draw() {
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // ball
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
         ctx.fillStyle = "#00ff99";
