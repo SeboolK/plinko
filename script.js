@@ -24,9 +24,12 @@ let balance = 1000;
 let bet = 10;
 let multipliers = [];
 
-const gravity = 0.2;     // 🔥 mocniejsze
-const friction = 0.995;  // 🔥 płynniejsze
-const bounce = 0.6;      // 🔥 mniej odbicia
+const RTP = 0.95; // 🔥 TU DODAJ
+
+const gravity = 0.2;
+const friction = 0.995;
+const bounce = 0.6;
+      // 🔥 mniej odbicia
 
 let lastTime = 0;
 
@@ -112,20 +115,49 @@ function createPins() {
 // ==========================
 // BALL
 // ==========================
-function createBall() {
 
-    // 🔥 bardziej naturalny spawn
-    const startX = canvas.width / 2 + (Math.random() - 0.5) * 40;
+
+
+function getRandomSlot() {
+    const weights = multipliers.map(m => {
+        const val = parseFloat(m);
+        return (1 / val) * (1 / RTP);
+    });
+
+    const sum = weights.reduce((a, b) => a + b, 0);
+    let rand = Math.random() * sum;
+
+    for (let i = 0; i < weights.length; i++) {
+        if (rand < weights[i]) return i;
+        rand -= weights[i];
+    }
+
+    return 0;
+}
+
+
+
+
+
+function createBall(targetIndex) {
+
+    const bottomWidth = canvas.width - 40;
+    const startX = (canvas.width - bottomWidth) / 2;
+    const slotWidth = bottomWidth / multipliers.length;
+
+    const targetX = startX + targetIndex * slotWidth + slotWidth / 2;
 
     return {
-        x: startX,
+        x: canvas.width / 2,
         y: 20,
-        vx: (Math.random() - 0.5) * 1,
+        vx: (targetX - canvas.width / 2) * 0.02,
         vy: 0,
         radius: 7,
+        targetX: targetX,
         trail: []
     };
 }
+
 
 // ==========================
 // COLLISION + EFFECT
@@ -169,7 +201,7 @@ function resolveCollision(ball, pin) {
 function getSlotIndex(x) {
     const count = multipliers.length;
 
-    const bottomWidth = canvas.width - 50;
+    const bottomWidth = canvas.width - 40;
     const startX = (canvas.width - bottomWidth) / 2;
     const slotWidth = bottomWidth / count;
 
@@ -180,6 +212,8 @@ function getSlotIndex(x) {
 
     return index;
 }
+
+
 
 // ==========================
 // UPDATE
@@ -195,6 +229,12 @@ function update(delta) {
         ball.vx *= friction;
 
         pins.forEach(pin => resolveCollision(ball, pin));
+
+        let dx = ball.targetX - ball.x;
+        ball.vx += dx * 0.0005;
+
+        clampBallToTriangle(ball);
+
 
         // ściany
         if (ball.x < ball.radius) {
@@ -241,35 +281,32 @@ function update(delta) {
 
 
 
-
 function clampBallToTriangle(ball) {
 
     const topY = 20;
-    const SLOT_Y = canvas.height - 20;
+    const bottomY = canvas.height - 20;
 
     const progress = (ball.y - topY) / (bottomY - topY);
-
-    // zabezpieczenie
     const t = Math.max(0, Math.min(1, progress));
 
     const centerX = canvas.width / 2;
-
-    // szerokość rośnie liniowo w dół
-    const halfWidth = (canvas.width / 2 - 15) * t;
+    const halfWidth = (canvas.width / 2 - 20) * t;
 
     const left = centerX - halfWidth;
     const right = centerX + halfWidth;
 
     if (ball.x < left) {
         ball.x = left;
-        ball.vx = Math.abs(ball.vx) * 0.5; // odbicie w prawo
+        ball.vx = Math.abs(ball.vx) * 0.6;
     }
 
     if (ball.x > right) {
         ball.x = right;
-        ball.vx = -Math.abs(ball.vx) * 0.5; // odbicie w lewo
+        ball.vx = -Math.abs(ball.vx) * 0.6;
     }
 }
+
+
 
 
 
@@ -281,11 +318,14 @@ function clampBallToTriangle(ball) {
 function drawSlots() {
     const count = multipliers.length;
 
-    const bottomWidth = canvas.width - 50; // 🔥 szerokość podstawy trójkąta
-    const startX = (canvas.width - bottomWidth) / 2;
-    const slotWidth = bottomWidth / count;
+    const topY = 20;
+    const bottomY = canvas.height - 25;
 
-    const y = canvas.height - 25;
+    // szerokość trójkąta na dole
+    const bottomWidth = canvas.width - 40;
+    const startX = (canvas.width - bottomWidth) / 2;
+
+    const slotWidth = bottomWidth / count;
 
     multipliers.forEach((m, i) => {
         let x = startX + i * slotWidth;
@@ -296,17 +336,20 @@ function drawSlots() {
         else if (value >= 2) color = "#ff9900";
         else if (value >= 1.5) color = "#00ccff";
 
+        // tło slotu
         ctx.fillStyle = color;
-        ctx.globalAlpha = 0.3;
-        ctx.fillRect(x, y, slotWidth, 25);
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(x, bottomY, slotWidth, 25);
         ctx.globalAlpha = 1;
 
+        // tekst
         ctx.fillStyle = "#fff";
-        ctx.font = "12px Arial";
+        ctx.font = "bold 12px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(m + "x", x + slotWidth / 2, y + 17);
+        ctx.fillText(m + "x", x + slotWidth / 2, bottomY + 17);
     });
 }
+
 
 // ==========================
 // DRAW
@@ -373,16 +416,15 @@ function loop(time=0){
 function dropBall() {
     bet = parseFloat(betInput.value || 10);
 
-    const maxBalls = 3;
+    if (balance < bet) return;
 
-    if(balance < bet * maxBalls) return;
+    balance -= bet;
 
-    balance -= bet * maxBalls;
-
-    for(let i=0; i<maxBalls; i++){
-        balls.push(createBall());
-    }
+    const target = getRandomSlot(); // 🔥 LOSOWANIE
+    balls.push(createBall(target));
 }
+
+
 
 document.getElementById("drop").onclick = dropBall;
 canvas.addEventListener("touchstart", dropBall);
