@@ -2,35 +2,62 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plinko Game</title>
+
+    <!-- FONT (ładniejszy vibe) -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="container">
 
-    <h1>🎯 PLINKO</h1>
-
-    <div class="controls">
-        <label>Risk:</label>
-        <select id="risk">
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-        </select>
-
-        <label>Rows:</label>
-        <select id="rows">
-            <option value="8">8</option>
-            <option value="10">10</option>
-            <option value="12">12</option>
-        </select>
-
-        <button id="drop">Drop Ball</button>
+    <!-- HEADER -->
+    <div class="header">
+        <h1>🎯 PLINKO</h1>
+        <div class="balance" id="balance">💰 1000 $</div>
     </div>
 
-    <canvas id="gameCanvas"></canvas>
+    <!-- CONTROLS -->
+    <div class="controls">
 
+        <div class="control-box">
+            <label>Risk</label>
+            <select id="risk">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+            </select>
+        </div>
+
+        <div class="control-box">
+            <label>Rows</label>
+            <select id="rows">
+                <option value="8">8</option>
+                <option value="10" selected>10</option>
+                <option value="12">12</option>
+            </select>
+        </div>
+
+        <div class="control-box">
+            <label>Bet</label>
+            <input type="number" id="bet" value="10" min="1">
+        </div>
+
+        <button id="drop" class="drop-btn">🎯 DROP</button>
+    </div>
+
+    <!-- CANVAS -->
+    <div class="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- wynik na środku -->
+        <div id="result" class="result">+0 $</div>
+    </div>
+
+    <!-- MULTIPLIERS -->
     <div class="multipliers" id="multipliers"></div>
 
 </div>
