@@ -2,29 +2,37 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Idle Money</title>
+    <title>Plinko Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="game">
-    <h1>💸 Idle Money</h1>
+<div class="container">
 
-    <div class="money" id="money">0 $</div>
+    <h1>🎯 PLINKO</h1>
 
-    <button id="clickBtn">💰 Zarabiaj</button>
+    <div class="controls">
+        <label>Risk:</label>
+        <select id="risk">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+        </select>
 
-    <div class="upgrades">
-        <h2>Ulepszenia</h2>
+        <label>Rows:</label>
+        <select id="rows">
+            <option value="8">8</option>
+            <option value="10">10</option>
+            <option value="12">12</option>
+        </select>
 
-        <button class="upgrade" id="upgradeClick">
-            +1 / klik (koszt: <span id="costClick">10</span>)
-        </button>
-
-        <button class="upgrade" id="upgradeAuto">
-            +1 / sek (koszt: <span id="costAuto">25</span>)
-        </button>
+        <button id="drop">Drop Ball</button>
     </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="multipliers" id="multipliers"></div>
+
 </div>
 
 <script src="script.js"></script>
