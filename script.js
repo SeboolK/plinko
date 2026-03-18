@@ -1,7 +1,9 @@
+// ==========================
+// SETUP
+// ==========================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// 📱 RESPONSYWNY CANVAS
 function resizeCanvas() {
     const size = Math.min(window.innerWidth - 20, 500);
     canvas.width = size;
@@ -10,40 +12,69 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
+// ==========================
+// GAME STATE
+// ==========================
 let pins = [];
 let ball = null;
 let rows = 10;
 let risk = "medium";
 
+let balance = 1000;
+let bet = 10;
+let multipliers = [];
+
 const gravity = 0.25;
 const friction = 0.995;
 const bounce = 0.6;
 
-// 🎯 DROP (3 STARTOWE POZYCJE)
-document.getElementById("drop").onclick = () => {
-    rows = parseInt(document.getElementById("rows").value);
-    risk = document.getElementById("risk").value;
+// trail
+let trail = [];
 
-    createPins();
-    createMultipliers();
+// ==========================
+// UI ELEMENTS
+// ==========================
+const balanceEl = document.getElementById("balance");
+const betInput = document.getElementById("bet");
 
-    const startPositions = [
-        canvas.width / 2,
-        canvas.width / 2 - 20,
-        canvas.width / 2 + 20
-    ];
+// ==========================
+// SAVE / LOAD
+// ==========================
+function saveGame() {
+    localStorage.setItem("plinko_balance", balance);
+}
 
-    const startX = startPositions[Math.floor(Math.random() * startPositions.length)];
+function loadGame() {
+    const saved = localStorage.getItem("plinko_balance");
+    if (saved) balance = parseFloat(saved);
+}
 
-    ball = {
-        x: startX,
-        y: 20,
-        vx: 0,
-        vy: 0,
-        radius: 6
-    };
-};
+// ==========================
+// MULTIPLIERS
+// ==========================
+function getMultipliers() {
+    if (risk === "low") return [2,1.5,1.2,1,0.8,1,1.2,1.5,2];
+    if (risk === "medium") return [5,2,1.5,1,0.5,1,1.5,2,5];
+    return [22,5,2,1.4,0.4,1.4,2,5,22];
+}
 
+function createMultipliers() {
+    const container = document.getElementById("multipliers");
+    container.innerHTML = "";
+
+    multipliers = getMultipliers();
+
+    multipliers.forEach(m => {
+        let div = document.createElement("div");
+        div.classList.add("multi");
+        div.innerText = m + "x";
+        container.appendChild(div);
+    });
+}
+
+// ==========================
+// PINS
+// ==========================
 function createPins() {
     pins = [];
     let spacing = canvas.width / (rows + 1);
@@ -59,27 +90,30 @@ function createPins() {
     }
 }
 
-function getMultipliers() {
-    if (risk === "low") return [2,1.5,1.2,1,0.8,1,1.2,1.5,2];
-    if (risk === "medium") return [5,2,1.5,1,0.5,1,1.5,2,5];
-    return [22,5,2,1.4,0.4,1.4,2,5,22];
+// ==========================
+// BALL
+// ==========================
+function createBall() {
+    const startPositions = [
+        canvas.width / 2,
+        canvas.width / 2 - 20,
+        canvas.width / 2 + 20
+    ];
+
+    const startX = startPositions[Math.floor(Math.random() * startPositions.length)];
+
+    return {
+        x: startX,
+        y: 20,
+        vx: 0,
+        vy: 0,
+        radius: 6
+    };
 }
 
-function createMultipliers() {
-    const container = document.getElementById("multipliers");
-    container.innerHTML = "";
-
-    let mults = getMultipliers();
-
-    mults.forEach(m => {
-        let div = document.createElement("div");
-        div.classList.add("multi");
-        div.innerText = m + "x";
-        container.appendChild(div);
-    });
-}
-
-// 🔥 LEPSZA FIZYKA
+// ==========================
+// COLLISION
+// ==========================
 function resolveCollision(ball, pin) {
     let dx = ball.x - pin.x;
     let dy = ball.y - pin.y;
@@ -103,48 +137,73 @@ function resolveCollision(ball, pin) {
         ball.vx *= bounce;
         ball.vy *= bounce;
 
-        // 🔥 MNIEJSZY RANDOM (ważne)
         ball.vx += (Math.random() - 0.5) * 0.05;
     }
 }
 
+// ==========================
+// RESULT
+// ==========================
+function getSlotIndex(x) {
+    const slotWidth = canvas.width / multipliers.length;
+    return Math.floor(x / slotWidth);
+}
+
+function handleResult() {
+    let index = getSlotIndex(ball.x);
+    let multiplier = multipliers[index] || 0;
+
+    let win = bet * multiplier;
+    balance += win;
+
+    saveGame();
+
+    alert("Wygrałeś: " + win.toFixed(2) + " $");
+}
+
+// ==========================
+// UPDATE
+// ==========================
 function update() {
     if (!ball) return;
 
-    // gravity
     ball.vy += gravity;
 
-    // movement
     ball.x += ball.vx;
     ball.y += ball.vy;
 
-    // friction
     ball.vx *= friction;
 
-    // collisions
     pins.forEach(pin => {
         resolveCollision(ball, pin);
     });
 
-    // walls
     if (ball.x < ball.radius) {
         ball.x = ball.radius;
         ball.vx *= -bounce;
     }
+
     if (ball.x > canvas.width - ball.radius) {
         ball.x = canvas.width - ball.radius;
         ball.vx *= -bounce;
     }
 
-    // 🔥 LEKKIE PROWADZENIE W DÓŁ (mega ważne)
     ball.vx *= 0.98;
 
-    // bottom
+    // trail
+    trail.push({x: ball.x, y: ball.y});
+    if (trail.length > 20) trail.shift();
+
     if (ball.y > canvas.height - 20) {
+        handleResult();
         ball = null;
+        trail = [];
     }
 }
 
+// ==========================
+// DRAW
+// ==========================
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -156,33 +215,63 @@ function draw() {
         ctx.fill();
     });
 
-    // ball glow
-    if (ball) {
-        let gradient = ctx.createRadialGradient(
-            ball.x, ball.y, 0,
-            ball.x, ball.y, 20
-        );
-        gradient.addColorStop(0, "#00ff99");
-        gradient.addColorStop(1, "transparent");
-
+    // trail
+    trail.forEach((t, i) => {
         ctx.beginPath();
-        ctx.arc(ball.x, ball.y, 20, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
+        ctx.arc(t.x, t.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,255,150," + (i / trail.length) + ")";
         ctx.fill();
+    });
 
+    // ball
+    if (ball) {
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
         ctx.fillStyle = "#00ff99";
         ctx.fill();
     }
+
+    // balance UI
+    if (balanceEl) {
+        balanceEl.innerText = "Balance: " + balance.toFixed(2) + " $";
+    }
 }
 
+// ==========================
+// LOOP
+// ==========================
 function loop() {
     update();
     draw();
     requestAnimationFrame(loop);
 }
 
+// ==========================
+// EVENTS
+// ==========================
+document.getElementById("drop").onclick = () => {
+    bet = parseFloat(betInput?.value || 10);
+
+    if (balance < bet) {
+        alert("Brak kasy!");
+        return;
+    }
+
+    balance -= bet;
+
+    rows = parseInt(document.getElementById("rows").value);
+    risk = document.getElementById("risk").value;
+
+    createPins();
+    createMultipliers();
+
+    ball = createBall();
+};
+
+// ==========================
+// INIT
+// ==========================
+loadGame();
 createPins();
 createMultipliers();
 loop();
