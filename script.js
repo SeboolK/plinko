@@ -24,9 +24,9 @@ let balance = 1000;
 let bet = 10;
 let multipliers = [];
 
-const gravity = 0.35;
-const friction = 0.998;
-const bounce = 0.75;
+const gravity = 0.2;     // 🔥 mocniejsze
+const friction = 0.995;  // 🔥 płynniejsze
+const bounce = 0.6;      // 🔥 mniej odbicia
 
 let lastTime = 0;
 
@@ -50,31 +50,30 @@ function loadGame() {
 }
 
 // ==========================
-// MULTIPLIERS (FIX)
+// MULTIPLIERS
 // ==========================
 function getMultipliers() {
     let size = rows + 1;
+    let center = (size - 1) / 2;
 
     if (risk === "low") {
         return Array.from({length: size}, (_, i) => {
-            let center = (size - 1) / 2;
             let dist = Math.abs(i - center);
-            return (1.2 - dist * 0.1).toFixed(2);
+            return (0.8 + dist * 0.1).toFixed(2); // 🔥 środek < 1
         });
     }
 
     if (risk === "medium") {
         return Array.from({length: size}, (_, i) => {
-            let center = (size - 1) / 2;
             let dist = Math.abs(i - center);
-            return (1 + dist * 0.4).toFixed(2);
+            return (0.6 + dist * 0.5).toFixed(2); // 🔥 środek ~0.6x
         });
     }
 
+    // high risk
     return Array.from({length: size}, (_, i) => {
-        let center = (size - 1) / 2;
         let dist = Math.abs(i - center);
-        return (1 + dist * 1.2).toFixed(2);
+        return (0.4 + dist * 1.4).toFixed(2); // 🔥 środek ~0.4x
     });
 }
 
@@ -114,18 +113,14 @@ function createPins() {
 // BALL
 // ==========================
 function createBall() {
-    const startPositions = [
-        canvas.width / 2,
-        canvas.width / 2 - 25,
-        canvas.width / 2 + 25
-    ];
 
-    const startX = startPositions[Math.floor(Math.random() * startPositions.length)];
+    // 🔥 bardziej naturalny spawn
+    const startX = canvas.width / 2 + (Math.random() - 0.5) * 40;
 
     return {
         x: startX,
         y: 20,
-        vx: (Math.random() - 0.5) * 0.5,
+        vx: (Math.random() - 0.5) * 1,
         vy: 0,
         radius: 7,
         trail: []
@@ -133,7 +128,7 @@ function createBall() {
 }
 
 // ==========================
-// COLLISION
+// COLLISION + EFFECT
 // ==========================
 function resolveCollision(ball, pin) {
     let dx = ball.x - pin.x;
@@ -142,6 +137,13 @@ function resolveCollision(ball, pin) {
     let minDist = ball.radius + pin.radius;
 
     if (dist < minDist) {
+
+        // 🔥 HIT FLASH
+        ctx.beginPath();
+        ctx.arc(pin.x, pin.y, 8, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(0,255,200,0.3)";
+        ctx.fill();
+
         let nx = dx / dist;
         let ny = dy / dist;
         let overlap = minDist - dist;
@@ -156,19 +158,25 @@ function resolveCollision(ball, pin) {
         ball.vx *= bounce;
         ball.vy *= bounce;
 
-        ball.vx += (Math.random() - 0.5) * 0.03;
+        // 🔥 większy random
+        ball.vx += (Math.random() - 0.5) * 0.1;
     }
 }
 
 // ==========================
-// SLOT INDEX (FIX)
+// SLOT INDEX
 // ==========================
 function getSlotIndex(x) {
-    const slotWidth = canvas.width / multipliers.length;
-    let index = Math.floor(x / slotWidth);
+    const count = multipliers.length;
+
+    const bottomWidth = canvas.width - 50;
+    const startX = (canvas.width - bottomWidth) / 2;
+    const slotWidth = bottomWidth / count;
+
+    let index = Math.floor((x - startX) / slotWidth);
 
     if (index < 0) index = 0;
-    if (index >= multipliers.length) index = multipliers.length - 1;
+    if (index >= count) index = count - 1;
 
     return index;
 }
@@ -180,6 +188,7 @@ function update(delta) {
     balls.forEach((ball, idx) => {
 
         ball.vy += gravity * delta;
+        ball.vy *= 0.99;
         ball.x += ball.vx * delta;
         ball.y += ball.vy * delta;
 
@@ -198,13 +207,7 @@ function update(delta) {
             ball.vx *= -bounce;
         }
 
-        // sufit
-        if (ball.y < ball.radius) {
-            ball.y = ball.radius;
-            ball.vy = 0;
-        }
-
-        // dół (blokada)
+        // dół
         if (ball.y > canvas.height - ball.radius) {
             ball.y = canvas.height - ball.radius;
         }
@@ -221,14 +224,12 @@ function update(delta) {
             const win = bet * multiplier;
             balance += win;
 
-            if (resultEl) {
-                resultEl.innerText = `+${win.toFixed(2)} $`;
-                resultEl.style.opacity = 1;
+            resultEl.innerText = `+${win.toFixed(2)} $`;
+            resultEl.style.opacity = 1;
 
-                setTimeout(() => {
-                    resultEl.style.opacity = 0.5;
-                }, 800);
-            }
+            setTimeout(() => {
+                resultEl.style.opacity = 0.5;
+            }, 800);
 
             balls.splice(idx, 1);
         }
@@ -237,22 +238,73 @@ function update(delta) {
     saveGame();
 }
 
+
+
+
+
+function clampBallToTriangle(ball) {
+
+    const topY = 20;
+    const SLOT_Y = canvas.height - 20;
+
+    const progress = (ball.y - topY) / (bottomY - topY);
+
+    // zabezpieczenie
+    const t = Math.max(0, Math.min(1, progress));
+
+    const centerX = canvas.width / 2;
+
+    // szerokość rośnie liniowo w dół
+    const halfWidth = (canvas.width / 2 - 15) * t;
+
+    const left = centerX - halfWidth;
+    const right = centerX + halfWidth;
+
+    if (ball.x < left) {
+        ball.x = left;
+        ball.vx = Math.abs(ball.vx) * 0.5; // odbicie w prawo
+    }
+
+    if (ball.x > right) {
+        ball.x = right;
+        ball.vx = -Math.abs(ball.vx) * 0.5; // odbicie w lewo
+    }
+}
+
+
+
+
+
 // ==========================
-// DRAW SLOTY
+// DRAW SLOTY (🔥 KOLORY)
 // ==========================
 function drawSlots() {
-    const slotWidth = canvas.width / multipliers.length;
+    const count = multipliers.length;
+
+    const bottomWidth = canvas.width - 50; // 🔥 szerokość podstawy trójkąta
+    const startX = (canvas.width - bottomWidth) / 2;
+    const slotWidth = bottomWidth / count;
+
+    const y = canvas.height - 25;
 
     multipliers.forEach((m, i) => {
-        let x = i * slotWidth;
+        let x = startX + i * slotWidth;
+        let value = parseFloat(m);
 
-        ctx.fillStyle = "rgba(120,0,255,0.25)";
-        ctx.fillRect(x, canvas.height - 30, slotWidth, 30);
+        let color = "#00ff99";
+        if (value >= 3) color = "#ff0055";
+        else if (value >= 2) color = "#ff9900";
+        else if (value >= 1.5) color = "#00ccff";
+
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(x, y, slotWidth, 25);
+        ctx.globalAlpha = 1;
 
         ctx.fillStyle = "#fff";
         ctx.font = "12px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(m + "x", x + slotWidth / 2, canvas.height - 10);
+        ctx.fillText(m + "x", x + slotWidth / 2, y + 17);
     });
 }
 
@@ -261,24 +313,22 @@ function drawSlots() {
 // ==========================
 function draw() {
 
-    // tło (vibe)
-    let bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    bg.addColorStop(0, "#020617");
-    bg.addColorStop(1, "#020617");
-
-    ctx.fillStyle = bg;
+    ctx.fillStyle = "#020617";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 🔥 global glow
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 20;
 
     // pins
     pins.forEach(p => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
         ctx.fillStyle = "#ffffff";
-        ctx.shadowColor = "#00ffcc";
-        ctx.shadowBlur = 5;
         ctx.fill();
-        ctx.shadowBlur = 0;
     });
+
+    ctx.shadowBlur = 0;
 
     // balls
     balls.forEach(ball => {
@@ -301,9 +351,7 @@ function draw() {
 
     drawSlots();
 
-    if(balanceEl) {
-        balanceEl.innerText = `💰 ${balance.toFixed(2)} $`;
-    }
+    balanceEl.innerText = `💰 ${balance.toFixed(2)} $`;
 }
 
 // ==========================
@@ -323,7 +371,7 @@ function loop(time=0){
 // DROP
 // ==========================
 function dropBall() {
-    bet = parseFloat(betInput?.value || 10);
+    bet = parseFloat(betInput.value || 10);
 
     const maxBalls = 3;
 
@@ -338,6 +386,28 @@ function dropBall() {
 
 document.getElementById("drop").onclick = dropBall;
 canvas.addEventListener("touchstart", dropBall);
+
+
+
+
+
+const riskSelect = document.getElementById("risk");
+const rowsSelect = document.getElementById("rows");
+
+// zmiana risk
+riskSelect.addEventListener("change", () => {
+    risk = riskSelect.value;
+
+    createMultipliers(); // 🔥 odśwież mnożniki
+});
+
+// zmiana rows
+rowsSelect.addEventListener("change", () => {
+    rows = parseInt(rowsSelect.value);
+
+    createPins();         // 🔥 nowa plansza
+    createMultipliers();  // 🔥 nowe sloty
+});
 
 // ==========================
 // INIT
