@@ -16,7 +16,7 @@ resizeCanvas();
 // GAME STATE
 // ==========================
 let pins = [];
-let balls = []; // teraz kilka piłek
+let balls = [];
 let rows = 10;
 let risk = "medium";
 
@@ -28,7 +28,6 @@ const gravity = 0.35;
 const friction = 0.998;
 const bounce = 0.75;
 
-// delta time (płynność)
 let lastTime = 0;
 
 // ==========================
@@ -36,7 +35,7 @@ let lastTime = 0;
 // ==========================
 const balanceEl = document.getElementById("balance");
 const betInput = document.getElementById("bet");
-const resultEl = document.getElementById("result"); // nowy element na wyniki
+const resultEl = document.getElementById("result");
 
 // ==========================
 // SAVE / LOAD
@@ -51,12 +50,32 @@ function loadGame() {
 }
 
 // ==========================
-// MULTIPLIERS
+// MULTIPLIERS (FIX)
 // ==========================
 function getMultipliers() {
-    if (risk === "low") return [2,1.5,1.2,1,0.8,1,1.2,1.5,2];
-    if (risk === "medium") return [5,2,1.5,1,0.5,1,1.5,2,5];
-    return [22,5,2,1.4,0.4,1.4,2,5,22];
+    let size = rows + 1;
+
+    if (risk === "low") {
+        return Array.from({length: size}, (_, i) => {
+            let center = (size - 1) / 2;
+            let dist = Math.abs(i - center);
+            return (1.2 - dist * 0.1).toFixed(2);
+        });
+    }
+
+    if (risk === "medium") {
+        return Array.from({length: size}, (_, i) => {
+            let center = (size - 1) / 2;
+            let dist = Math.abs(i - center);
+            return (1 + dist * 0.4).toFixed(2);
+        });
+    }
+
+    return Array.from({length: size}, (_, i) => {
+        let center = (size - 1) / 2;
+        let dist = Math.abs(i - center);
+        return (1 + dist * 1.2).toFixed(2);
+    });
 }
 
 function createMultipliers() {
@@ -142,11 +161,16 @@ function resolveCollision(ball, pin) {
 }
 
 // ==========================
-// RESULT
+// SLOT INDEX (FIX)
 // ==========================
 function getSlotIndex(x) {
     const slotWidth = canvas.width / multipliers.length;
-    return Math.floor(x / slotWidth);
+    let index = Math.floor(x / slotWidth);
+
+    if (index < 0) index = 0;
+    if (index >= multipliers.length) index = multipliers.length - 1;
+
+    return index;
 }
 
 // ==========================
@@ -154,9 +178,11 @@ function getSlotIndex(x) {
 // ==========================
 function update(delta) {
     balls.forEach((ball, idx) => {
+
         ball.vy += gravity * delta;
         ball.x += ball.vx * delta;
         ball.y += ball.vy * delta;
+
         ball.vx *= friction;
 
         pins.forEach(pin => resolveCollision(ball, pin));
@@ -166,23 +192,43 @@ function update(delta) {
             ball.x = ball.radius;
             ball.vx *= -bounce;
         }
+
         if (ball.x > canvas.width - ball.radius) {
             ball.x = canvas.width - ball.radius;
             ball.vx *= -bounce;
+        }
+
+        // sufit
+        if (ball.y < ball.radius) {
+            ball.y = ball.radius;
+            ball.vy = 0;
+        }
+
+        // dół (blokada)
+        if (ball.y > canvas.height - ball.radius) {
+            ball.y = canvas.height - ball.radius;
         }
 
         // trail
         ball.trail.push({x: ball.x, y: ball.y});
         if (ball.trail.length > 25) ball.trail.shift();
 
-        // koniec piłki
-        if (ball.y > canvas.height - 20) {
+        // koniec
+        if (ball.y >= canvas.height - 25) {
             const index = getSlotIndex(ball.x);
             const multiplier = multipliers[index] || 0;
+
             const win = bet * multiplier;
             balance += win;
 
-            if (resultEl) resultEl.innerText += `Wygrana: ${win.toFixed(2)} $\n`;
+            if (resultEl) {
+                resultEl.innerText = `+${win.toFixed(2)} $`;
+                resultEl.style.opacity = 1;
+
+                setTimeout(() => {
+                    resultEl.style.opacity = 0.5;
+                }, 800);
+            }
 
             balls.splice(idx, 1);
         }
@@ -192,10 +238,36 @@ function update(delta) {
 }
 
 // ==========================
+// DRAW SLOTY
+// ==========================
+function drawSlots() {
+    const slotWidth = canvas.width / multipliers.length;
+
+    multipliers.forEach((m, i) => {
+        let x = i * slotWidth;
+
+        ctx.fillStyle = "rgba(120,0,255,0.25)";
+        ctx.fillRect(x, canvas.height - 30, slotWidth, 30);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(m + "x", x + slotWidth / 2, canvas.height - 10);
+    });
+}
+
+// ==========================
 // DRAW
 // ==========================
 function draw() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // tło (vibe)
+    let bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bg.addColorStop(0, "#020617");
+    bg.addColorStop(1, "#020617");
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // pins
     pins.forEach(p => {
@@ -210,6 +282,7 @@ function draw() {
 
     // balls
     balls.forEach(ball => {
+
         ball.trail.forEach((t,i) => {
             ctx.beginPath();
             ctx.arc(t.x, t.y, 3, 0, Math.PI*2);
@@ -226,7 +299,11 @@ function draw() {
         ctx.shadowBlur = 0;
     });
 
-    if(balanceEl) balanceEl.innerText = `Balance: ${balance.toFixed(2)} $`;
+    drawSlots();
+
+    if(balanceEl) {
+        balanceEl.innerText = `💰 ${balance.toFixed(2)} $`;
+    }
 }
 
 // ==========================
@@ -243,31 +320,20 @@ function loop(time=0){
 }
 
 // ==========================
-// DROP BALL EVENT
+// DROP
 // ==========================
 function dropBall() {
     bet = parseFloat(betInput?.value || 10);
 
-    const maxBalls = 3; // ile piłek puszczamy naraz
-    if(balance < bet * maxBalls){
-        alert("Brak kasy na tyle piłek!");
-        return;
-    }
+    const maxBalls = 3;
+
+    if(balance < bet * maxBalls) return;
 
     balance -= bet * maxBalls;
 
-    rows = parseInt(document.getElementById("rows").value);
-    risk = document.getElementById("risk").value;
-
-    createPins();
-    createMultipliers();
-
-    balls = [];
     for(let i=0; i<maxBalls; i++){
         balls.push(createBall());
     }
-
-    if(resultEl) resultEl.innerText = "";
 }
 
 document.getElementById("drop").onclick = dropBall;
