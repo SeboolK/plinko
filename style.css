@@ -198,3 +198,6 @@ canvas {
     color: #e2e8f0;
     font-weight: bold;
 }
+.footer {
+    box-shadow: 0 0 10px rgba(0, 255, 200, 0.1);
+}
