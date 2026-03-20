@@ -201,3 +201,95 @@ canvas {
 .footer {
     box-shadow: 0 0 10px rgba(0, 255, 200, 0.1);
 }
+
+
+
+
+.content {
+    margin: 40px auto;
+    max-width: 600px;
+    padding: 15px;
+    background: #020617;
+    border-radius: 10px;
+    text-align: center;
+}
+
+
+.content h2 {
+    color: #e2e8f0;
+}
+
+.content p {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.footer {
+    margin-top: 30px;
+    padding: 20px;
+    background: #020617;
+    color: #94a3b8;
+    text-align: center;
+    font-size: 12px;
+}
+
+
+
+
+
+
+.cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(2, 6, 23, 0.95);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    padding: 15px;
+    z-index: 9999;
+    display: none;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.cookie-content {
+    max-width: 900px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.cookie-content p {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.cookie-content a {
+    color: #00ff99;
+    text-decoration: none;
+}
+
+.cookie-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.cookie-buttons button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#acceptCookies {
+    background: #00ff99;
+    color: #000;
+}
+
+#declineCookies {
+    background: #333;
+    color: #fff;
+}

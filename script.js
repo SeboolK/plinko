@@ -458,3 +458,36 @@ loadGame();
 createPins();
 createMultipliers();
 loop();
+
+
+
+
+
+
+
+
+const cookieBanner = document.getElementById("cookieBanner");
+const acceptBtn = document.getElementById("acceptCookies");
+const declineBtn = document.getElementById("declineCookies");
+
+// sprawdź czy użytkownik już wybrał
+if (!localStorage.getItem("cookies_choice")) {
+    cookieBanner.style.display = "block";
+}
+
+// akceptacja
+acceptBtn.onclick = () => {
+    localStorage.setItem("cookies_choice", "accepted");
+    cookieBanner.style.display = "none";
+
+    // 🔥 tutaj możesz odpalić np. Google Analytics / Ads
+    console.log("Cookies accepted");
+};
+
+// odrzucenie
+declineBtn.onclick = () => {
+    localStorage.setItem("cookies_choice", "declined");
+    cookieBanner.style.display = "none";
+
+    console.log("Cookies declined");
+};
